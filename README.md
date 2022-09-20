@@ -4950,17 +4950,199 @@ nmap -p 80 -iL hosts.txt
 nmap -n -iL hosts.txt -p 80 -oN output.txt
 ```
 
-# Section 14: Challenges - Networking in Linux
-
-## General Notes
-
 # Section 15: Software Management
 
 ## General Notes
 
-# Section 16: Challenges - Software Management
+- __postfix__ is a well-known email server
+- __ProFTPD__ is one of the most popular FTP tools
+- It is recommended that programs that are compiled and not controlled by the 
+  package manager are installed under `/opt`.
+  - Stands for __Optional Software__
 
-## General Notes
+## DPKG (Debian and Ubuntu Based Distros)
+
+A low-level package manager.
+
+A binary package in Linux is an application which contains executables instead
+of source code.
+
+- We do not need to compile the source code
+- `deb` comes from Debra (the wife's name of the founder), and is the default
+  for Debian.
+- Inside a `.deb` file, one archive contains the metadata, dependencies, etc, 
+  and the other contains the application files.
+
+### Installating a `.deb` file
+
+```shell
+sudo dpkg - i <package1>[ <package2> ... <package_n]>
+
+## Finding a Specific Package
+dkpg-query -l | grep <package>
+
+# Find all files in a package
+dpkg -L <package>
+
+# See which package contains a command
+dpkg -S <command>
+
+# Remove a package
+sudo dpkg -r <package>
+
+# Remove a package and its config files
+sudo dpkg -P <package>
+
+# List all installed packages
+sudo dpkg --get-selections
+```
+
+- When there's a circular dependency, it's good to install all of them in one
+  line.
+
+## APT - Advanced Package Tool
+
+- The recommended way to manage software packages on Ubuntu and other Debian 
+  based distributions is using `apt`.
+- In the newest versions of Ubuntu the `apt-get` and `apt-cache` tools were 
+  merged into a single command simply called `apt`.
+- Unlike `dpkg`, `apt` does not understand `.deb` files. It works with packages
+  that are downloaded from repositories and calls `dpkg` directly after
+  downloading the 
+  `.deb` archives.
+- An __APT repository__ is a web server which contains a collection of packages
+  with metadata that is readable by the apt tool.
+- A special kind of repository hosted on servers like Launchpad are __PPAs__. 
+  - Personal Package Archive
+
+## Using APT
+
+```shell
+# Update index of repositories
+sudo apt update
+
+# Install a new program
+sudo apt install <package>
+
+# List all upgradable packages
+sudo apt list --upgradable
+
+# Upgrade everything
+sudo apt full-upgrade
+# Use -y if running from a script
+
+# Remove all config files with the package
+sudo apt purge <package>
+
+# Remove unneeded dependencies
+sudo apt autoremove
+
+# Search for packages whose description contains something
+sudo apt search "<string>"
+```
+
+- APT uses an index (or local database) that holds records of available packages
+  from the repositories enabled in the system.
+- If a package fails to start, it could be that another service is already 
+  using that port (such as __nginx__).
+- The cache directory for Ubuntu packages is in `/var/cache/apt/archives`
+  - For Arch: `/var/cache/pacman/pkg`
+
+## Commands - `dkpg`, `apt`
+
+```shell
+##########################
+## Software Management (dpkg and apt)
+##########################
+ 
+### DPKG ###
+# getting info about a deb file
+dpkg --info google-chrome-stable_current_amd64.deb
+ 
+# installing an application from a deb file
+sudo dpkg -i google-chrome-stable_current_amd64.deb
+ 
+# list all installed programs
+dpkg --get-selections
+dpkg-query -l
+ 
+# filtering the output
+dpkg-query -l | grep ssh
+ 
+# listing all files of an installed package
+dpkg-query -l | grep ssh
+dpkg -L openssh-server
+ 
+# finding to which package a file belongs 
+which ls
+dpkg -S /bin/ls
+    coreutils: /bin/cp
+ 
+# removing a package
+sudo dpkg -r google-chrome-stable
+ 
+# purging a package
+sudo dpkg -P google-chrome-stable
+ 
+### APT ###
+# updating the package index (doesn't install/uninstall/update any package)
+sudo apt update
+# installing or updating a package named apache2
+sudo apt install apache2
+ 
+# listing all upgradable packages
+sudo apt list --upgradable
+ 
+# upgrading all applications
+sudo apt full-upgrade
+sudo apt full-upgrade -y        # => assume yes to any prompt (useful in scripts)
+ 
+# removing a package
+sudo apt remove apache2
+ 
+# removing a package and its configurations
+sudo apt purge apache2
+ 
+# removing dependencies that are not needed anymore
+sudo apt autoremove
+ 
+# removing the saved deb files from the cache directory (var/cache/apt/archives)
+sudo apt clean
+ 
+# listing all available packages
+sudo apt list
+sudo apt list | wc -l
+ 
+# searching for a package
+sudo apt list | grep nginx
+ 
+# showing information about a package
+sudo apt show nginx
+ 
+# listing all installed packages
+sudo apt list --installed
+```
+
+## Compiling Programs From Source Code vs Package Manager
+
+| Advantages                                                                                                                          | Disadvantages                                                                                                                                                              |
+|:------------------------------------------------------------------------------------------------------------------------------------|:---------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| You can compile applications with certain<br/>options which may be missing or disabled in<br/>the standard distribution package.ddd | The package manager will be completely<br/>unaware of the changes you've made. It won’t<br/>be possible to update or remove the<br/>application using the package manager. |
+| Access to the latest version of an application.                                                                                     | If you are not careful when compiling to install<br/>the program in separate location you can break<br/>your system.                                                       |                                                                                                                                        
+| It’s possible to have multiple versions of the<br/>same program installed.                                                          | It’s not the easiest job.                                                                                                                                                  |
+
+## Compiling C Programs
+
+1. Install the prerequisites: `gcc`, `g++`, `make`
+   - Ubuntu: `sudo apt update && sudo apt install build-essential`
+   - CentOS: `sudo dnf group install "Development Tools"`
+2. Download the source files from the official website
+3. Chec the integrity of the tarball (hash or digital signature)
+4. Extract the archive and move into the resulting directory
+5. Run: `./configure --help` and set the required compilation options
+   - Run `/.configure <custom_options>` to apply the changes
+6. Run: `make`
+7. Run: `make install`
 
 # Section 17: System Administration
 
