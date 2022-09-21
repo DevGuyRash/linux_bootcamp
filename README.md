@@ -6373,6 +6373,8 @@ __MySql is not secure by default. Run the pre-installed security script.__
 6. Protect __wp-admin__ directory (source IP access or username and passwords).
 7. __Make backups__ regularly and test them.
 
+
+
 # Section 20: Bash Shell Scripting
 
 ## General Notes
