@@ -5144,17 +5144,1234 @@ sudo apt list --installed
 6. Run: `make`
 7. Run: `make install`
 
-# Section 17: System Administration
-
-## General Notes
-
 # Section 18: Challenges - System Administration
 
 ## General Notes
 
+## Task Automation and Scheduling Using Cron (`crontab` - cron table)
+
+`cron` runs as a daemon and is used to automate repetitive tasks like: backups,
+monitoring disk space usage, updating the system with the latest application
+versions, sending e-mails, rotating logs, etc.
+
+- Arch doesn't use crontab and instead uses systemd/Timers
+
+The word __crontab__ has 3 meanings:
+
+1. The text file that contains the user's cron jobs is called the user's 
+   __crontab__.
+   - There is one per user in `/var/spool/cron/crontabs`
+2. The command `crontab` used to manage the __crontab__ files.
+3. The configuration file for system-wide crontabs in `/etc/crontab`
+
+Two sties for crontab generation:
+
+- [Crontab Guru](https://crontab.guru)
+- [Crontab Generator](https://www.crontab-generator.org)
+
+### Individual User crontabs
+
+```shell
+# Display current users crontabs
+crontab -l
+
+# Edit current users crontab file
+crontab -e
+
+# Remove a crontab file
+crontab -r
+
+# Edit another users crontab
+cronttab -e -u <user>
+```
+
+- Each script in a crontab has 6 fields. The first 5 are when to run, and the
+  last one is what command to run.
+  - `m h dom mon dow command`
+    - `m` minute
+    - `h` hour
+    - `dom` day of month
+    - `mon` month
+    - `dow` day of week
+    - `command` command
+  - Using a `*` in that field means all of them.
+- The lowest time unit in cron is a minute.
+- You can use `/` to specify commands to be repeated over an interval
+  - `*/3` would mean every 3 days if used on the day column
+- `@yearly` runs something every year
+- `@monthly` runs the task once a month at midnight on the first of the month
+- `@weekly` runs the task once a week at midnight on sunday
+- `@daily` runs the task at midnight daily
+- `@hourly` runs the task hourly
+- `@reboot` runs the task at boot time
+
+#### Example cron services
+
+```shell
+0 6 * * 0 /root/backup.sh
+0 4,6,10 * * * /root/check_space.sh
+0 9-17 * * 1-5 /root/firewall.sh
+10 4,21 */3 * * /root/task.sh
+```
+
+- cron creates and uses its own environment. Use absolute paths for this reason.
+
+Root can also disable or allow users from changing their crontabs.
+
+### System-wide crontabs
+
+To change a users crontab to system-wide, move it to one of these:
+
+- `/etc/cron.daily`
+- `/etc/cron.hourly`
+- `/etc/cron.weekly`
+- `/etc/cron.monthly`
+
+To check when the above scripts will run, check in `/etc/crontab`
+
+__cron jobs are intended for servers or machines that are running continuously.
+If it's down, the task is lost. Use <u>anacron</u> if it is not continuous.__
+
+Commands - Cron
+
+```shell
+##########################
+## Task Scheduling using Cron
+##########################
+ 
+# editing the current user’s crontab file 
+crontab -e
+ 
+# listing the current user’s crontab file 
+crontab -l
+ 
+# removing the current user’s crontab file 
+crontab -r
+ 
+## COMMON EXAMPLES ##
+# run every minute
+* * * * * /path_to_task_to_run.sh
+ 
+# run every hour at minute 15
+15 * * * * /path_to_task_to_run.sh
+ 
+# run every day at 6:30 PM
+30 18 * * * /path_to_task_to_run.sh
+ 
+# run every Monday at 10:03 PM
+3 22 * * 1 /path_to_task_to_run.sh
+ 
+# run on the 1st of every Month at 6:10 AM
+10 6 1 * * /path_to_task_to_run.sh
+ 
+# run every hour at minute 1, 20 and 35
+1,20,35 * * * * /path_to_task_to_run.sh
+ 
+# run every two hour at minute 10
+10 */2 * * * /path_to_task_to_run.sh
+ 
+# run once a year on the 1st of January at midnight
+@yearly     /path_to_task_to_run.sh
+ 
+# run once a month at midnight on the first day of the month
+@monthly    /path_to_task_to_run.sh
+ 
+# run once a week at midnight on Sunday
+@weekly      /path_to_task_to_run.sh
+ 
+# once an hour at the beginning of the hour
+@hourly     /path_to_task_to_run.sh
+ 
+# run at boot time
+@reboot     /path_to_task_to_run.sh
+ 
+All scripts in following directories will run as root at that interval:
+/etc/cron.hourly
+/etc/cron.daily  
+/etc/cron.hourly  
+/etc/cron.monthly
+/etc/cron.weekly
+```
+
+## Scheduling Tasks Using Anacron (`anacron`)
+
+Similar to `cron`, except it's usually used on systems that are not up all the
+time (such as desktops or laptops).
+
+- A script that is scheduled for a time and gets skipped because the machine is 
+  off over will start next system boot.
+  - It's an enabled service and runs at system boot
+- Anacron jobs are in `/etc/anacrontab`
+
+```shell
+#period in days   delay in minutes   job-identifier   command
+1       5       cron.daily              nice run-parts /etc/cron.daily
+7       25      cron.weekly             nice run-parts /etc/cron.weekly
+@monthly 45     cron.monthly            nice run-parts /etc/cron.monthly
+```
+
+- These are here by default
+- `run-parts` is a command which runs all the executable files found in a 
+  directory.
+- `period in days` Frequency of the job execution in __days__.
+- `delay in minutes` How long anacron will wait before executing its commands.
+  - Will wait this amount of time between each job and before running at startup.
+- `job-identifier` Should be unique for each job, and is the name of a file that
+  will be created under `/var/spool/anacron`.
+  - Called the __Job Timestamp File__, and will contain a single line that
+    indicates the last time when this job was executed.
+  - Also identifies this message in the job or log files.
+- `command` The command that will be executed.
+
+__Run `anacron -T` after modifying the file, and it will check the file for 
+errors.__
+
+```shell
+# Run all anacron jobs
+anacron -d
+```
+
+- `d` Doesn't fork anacron to the bg, and keeps it in the fg for testing.
+
+## Mounting and Unmounting File Systems (`df`, `mount`, `unmount`, `fdisk`, `gparted`)
+
+If you want to access another disk, you need to logically attach it to an 
+existing directory of the unique file system. That directory is called __Mount
+Point__.
+
+```shell
+mount
+
+mount -t
+```
+
+- when run without any arguments, it displays all currently attached file 
+  systems.
+  - This includes virtual file systems such as `sysfs`, `tmpfs`, `proc`
+- `l` List
+- `t <type>` Only display `type` drives
+
+In Linux, a storage device is logically represented as a special char device in
+`/dev`.
+
+### Listing Devices
+
+```shell
+# List all drives
+fdisk -l
+
+# Find the name of the device
+dmesg
+
+# List all block devices
+lsblk
+```
+
+### Mounting To Another Mount Point
+
+```shell
+sudo mount <device_file> <dest_to_mount>
+```
+
+- You can mount the same physical disk in multiple places
+- `mount` will auto-detect the filesystem type, but some need to be specified 
+  with `t <file_system_type>`
+- `o` Options.
+  - Specify other additional options.
+  - `mount -o ro /dev/sdb /home/rashino/Desktop/usb`
+    - Makes it __read-only__.
+  - `mount -o rw,remount /dev/sdb /home/rashino/Desktop/usb`
+    - Makes it __read-write__ and remounts.
+
+### Unmounting
+
+```shell
+sudo umount <mount_point>
+```
+
+- You can unmount partitions only if they're not used
+- `l` or `--lazy` unmounts a busy file system as soon as it's not busy anymore.
+
+### Mounting An ISO File
+
+```shell
+sudo mount <path_to_iso_file> <mount_point> -o loop
+```
+
+### Partitions
+
+`fdisk` is the standard management tool. Make sure to back up your files before 
+working with disks and partitions.
+
+- Use __Gparted__ if you have a gui.
+
+## Working With Device Files (`dd`)
+
+Used to convert and copy files. Can be used to read/write from special device
+files.
+
+- Examples of use:
+  - Backing up the boot sector of a hard drive
+  - Cloning a disk or partition to another
+  - Creating a boot table USB
+
+```shell
+dd if=<src_file> of=<dest_file> status=progress
+
+# Example 1
+dd if=/dev/sdc of=/home/rashino/back-usb.img status=progress
+# Example 2
+dd if=/dev/sdc of=/home/rashino/back-usb.img status=progress conv=sync
+```
+
+- Works with blocks, so it will copy both used and unused space.
+  - If you have a 10GB drive and only use 9GB, it will still copy 10GB.
+- `if` Input File
+- `of` Output File
+- `status`
+  - You need to use the gnu `dd` command from `coreutils` version 8.24 or above
+    to use the `status=progress` option.
+- `sync` Copies everything using synchronized IO
+- `bs` Specifies the block size
+- `count` How many blocks to copy
+
+### Master Boot Record (MBR)
+
+The __MBR__ is a special type of boot sector at the very beginning of the disk.
+It holds the information on how the logical partition containing file systems 
+organized on that medium.
+
+- It also contains executable code, which is usually referred to as a 
+  boot-loader.
+- To copy only the MBR:
+  ```shell
+  # Making the backup
+  dd if=/dev/sda of=/root/mbr.dat bs=512 count=1
+  ```
+
+### Formatting a drive
+```shell
+mkfs.<file-system> <drive>
+```
+
+## Getting System Hardware Information (`lshw`, `lscpu`, `lsusb`, `lspci`, `dmidecode`, `hdparm`)
+
+- Most of the info from these commands in in `/proc`
+  - `cat /prov/partitions`
+  - `cat /prov/version`
+
+### lshw
+
+Used to extract hardware information of the machine
+
+```shell
+lshw
+
+lshw -json
+
+# Get info about the disks
+lshw -C disk
+lshw -C disk -short
+```
+
+- `J` Outputs it as json data
+- `html` Outputs it as html
+- `short` Only gives a summary
+
+### inxi
+
+Not available on all distros, but does the same as `lshw`
+
+### lscpu
+
+Displays info about the central processor unit and its architecture.
+
+```shell
+lscpu
+```
+
+- The same as `lshw -C cpu`
+- `json` Outputs it as json data
+
+### dmidecode
+
+Get info on all memory modules and their capacities.
+
+- Lists information about the ram memory installed on the system, not the 
+  amount of free or used memory on the system.
+
+```shell
+dmidecode -t memory
+
+dmidecode -t memory | grep -i size
+dmidecode -t memory | grep -i max
+```
+
+- `-t memory` Get information only about the memory
+
+### lspci
+
+List all pci buses and details about the devices connected to them.
+
+```shell
+lspci
+
+lspci | grep -i wireless
+```
+
+### lsusb
+
+List the USB controllers and details about the devices connected to them.
+
+```shell
+lsusb
+```
+
+- `v` Verbose.
+  - Prints out detailed information
+
+### hdparm
+
+Used to get or set SATA drive parameters.
+
+```shell
+hdparm -i <drive>
+
+# Example
+hdparm -i /dev/sdb
+
+# Request identification information directly from the drive with more info
+hdparm -I /dev/sdb
+
+# Perform benchmarks on the hard disks
+hdparm -t --direct <disk>
+```
+
+- `--direct` will bypass the page cache, causing the reads to go directly from
+  the drive into the `hdparm`command buffers.
+  - Raw IO
+- `t` Perform timing of device reads for benchmarking and testing purposes.
+
+### iw 
+
+Get information on the wireless devices
+
+```shell
+iw list
+```
+
+### uname
+
+Get information about the kernel
+
+```shell
+uname -r
+uname -a
+```
+
+- `r` Running kernel's name
+- `a` More information on the kernel
+
+### acpi 
+
+Shows battery status
+
+```shell
+acpi -bi
+
+# Show everything
+acpi -V
+```
+
+- `bi`
+
+## Commands - Getting Hardware Information
+
+```shell
+##########################
+## Getting System Hardware Information
+##########################
+ 
+# displaying full hardware information
+lshw
+lshw -short     # => short format
+lshw -json      # => json format
+lshw -html      # => html format
+ 
+inxi -Fx
+# displaying info about the CPU
+lscpu
+lshw -C cpu
+lscpu -J    => json format
+ 
+# displaying info about the installed RAM memory
+dmidecode -t memory 
+dmidecode -t memory | grep -i size
+dmidecode -t memory | grep -i max
+ 
+# displaying info about free/used memory
+free -m
+ 
+# getting info about pci buses and about the devices connected to them
+lspci
+lspci | grep -i wireless
+lspci | grep -i vga
+ 
+# getting info about USB controllers and about devices connected
+lsusb
+lsusb -v
+ 
+# getting info about hard disks
+lshw -short -C disk
+fdisk -l
+fdisk -l /dev/sda
+lsblk
+hdparm -i /dev/sda
+hdparm -I /dev/sda
+ 
+# benchmarking disk read performance
+hdparm -tT --direct /dev/sda
+ 
+# getting info about WiFi cards and networks
+lshw -C network
+iw list
+iwconfig
+iwlist wlo1 scan
+ 
+# Getting hardware information from the /proc virtual fs
+cat /proc/cpuinfo
+/proc/partitions
+cat /proc/meminfo
+cat /proc/version
+uname -r    # => kernel version
+uname -a
+ 
+acpi -bi    # battery information
+acpi -V
+ 
+## Working directly with device files (dd)
+ 
+# backing up the MBR (the first sector of /dev/sda)
+dd if=/dev/sda of=~/mbr.dat bs=512 count=1
+ 
+# restoring the MBR
+dd if=~/mbr.dat of=/dev/sda bs=512 count=1
+ 
+# cloning a partition (sda1 to sdb2)
+dd if=/dev/sda1 of=/dev/sdb2 bs=4M status=progress
+```
+
+## Into to __systemd__
+
+### systemd (System Management Daemon) vs SysVInit
+
+- Most modern Linux distributions are using __SystemD__ as the default init 
+  system and service manager.
+- It replaced the old __SysVinit__ script system, but it’s backward compatible 
+  with __SysVinit__.
+- __systemd__ starts with PID 1 as the first process, then takes over and 
+  continues to mount the host’s file systems and starts services.
+- systemd starts the services in parallel.
+- Systemd is a Linux initialization system and service manager with many 
+  components, such as:
+  - On-demand service management
+  - Logging
+  - Boot manager
+  - Many more
+
+The Linux boot process has the following phases:
+
+1. The system powers up
+2. The bootloader, which is GRUB, loads the kernel
+3. The kernel loads an initial RAM disk that loads the system drives and looks
+  for the root file system.
+4. Once the kernel is set up, it begins the systemd initialization system.
+5. __systemd__ starts with PID 1 as the first process, then takes over and 
+   continues to mount the host’s file systems and starts services.
+
+SysVinit used to start the services sequentially, whereas systemd starts them in
+parallel.
+
+#### Statistics:
+```shell
+# Checking how long the boot process took
+ systemd-analyze
+# Print a list of all running units, ordered by the time they took to initialize
+ systemd-analyze blame
+
+# Check the systemd version
+systemd --version
+```
+
+### SystemD Units
+
+Defined in unit configuration files, which include info about the unit type and
+its behaviour. They have the extension `.service`.
+
+- Service Unit
+- Mount Unit
+- Socket Unit
+- Slice Unit
+
+## Service Management (`systemd` and `systemctl`)
+
+```shell
+# Check if a status is running
+systemctl status <service>
+
+# Restart a service
+systemctl restart <service>
+
+# Start/stop a service
+systemctl start <service>
+systemctl stop <service>
+
+# Reload config files without restarting
+systemctl reload <service>
+
+# If you're unsure if a service can reload without restarting
+systemctl reload-or-restart <service>
+
+# Enable a service
+systemctl enable <service>
+
+# Disable a service
+systemctl disable <service>
+
+# Check if a service is enabled
+systemctl is-enabled <service>
+
+# Stop a service from being started automatically
+systemctl mask <service>
+systemctl unmask <service>  # Allows the service to start automatically again
+
+# See a list of all the active units the systemd knows about
+systemctl list-units
+
+# See a list of all systemd units even if they're not active
+systemctl list-units --all
+```
+
+- You don't need the `.service` suffix
+
+## Commands - systemd, systemctl
+
+```shell
+##########################
+## Service Management using systemd and systemctl
+##########################
+# showing info about the boot process
+systemd-analyze
+systemd-analyze blame
+ 
+# listing all active units systemd knows about
+systemctl list-units
+systemctl list-units | grep ssh
+ 
+# checking the status of a service
+sudo systemctl status nginx.service
+ 
+# stopping a service
+sudo systemctl stop nginx
+ 
+# starting a service
+sudo systemctl start nginx
+ 
+# restarting a service
+sudo systemctl restart nginx
+ 
+# reloading the configuration of a service
+sudo systemctl reload nginx
+sudo systemctl reload-or-restart nginx
+ 
+# enabling to start at boot time
+sudo systemctl enable nginx
+ 
+# disabling at boot time
+sudo systemctl disable nginx
+ 
+# checking if it starts automatically at boot time
+sudo systemctl is-enabled nginx
+ 
+# masking a service (stopping and disabling it)
+sudo systemctl mask nginx
+ 
+# unmasking a service
+sudo systemctl unmask nginx
+```
+
 # Section 19: Configure a Linux Server From Scratch (VPS, DBS, WEEB, PHP, MySql, Wordpress)
 
 ## General Notes
+
+- Computers communicate using only IP addresses, not domain names.
+  - Each time you send an email or browse the web, a request is made to a DNS
+    server. In turn, the server will respond with a reply indicating the IP
+    adddress of that domain.
+  - A [DNS](https://en.wikipedia.org/wiki/Domain_Name_System) allows us to
+    reference domains by their name instead of their IP.
+    - `dig`, `nslookup` and `host` are useful commands for getting dns 
+      information found in the __bind__ package.
+- You can get a free domain at [freenom](https://freenom.com/en/index.html?lang=en)
+  - tk comes from Tokelau, a group of three tropical coral islands with a 
+    capital that rotates between the islands each year.
+    - Located in New Zealand
+  - ml is Mali, an African country
+  - ga is Gabon, an African country
+- The DNS server used for a domain is called the __Authoritative DNS Server__.
+  - It holds the master copy of the __Zone file__, which contains all the details
+    about a domain, such as the subdomains (like www) or the associated IP
+    addresses.
+  - For redundancy, it's recommended to have at least 2 DNS servers.
+    - One is called __the master__, and the other is the __slave__ (or 
+      secondary master).
+    - The Authoritative servers are the final holders of the IP the user is 
+      looking for.
+    - It's only necessary to add personal DNS servers to one domain, and add
+      the authoritative DNS servers only to additional sites.
+- Due to DNS propagation, it can take up to 24 hours for an ISP to update their
+  cache.
+  - Use `dig -t ns <domain>` to check if it's working
+- Create an alias to login `ssh -l <username> -p <port> <ip_address>`
+
+>__LAMP__ 
+> - __L__ inux
+> - __A__ pache
+> - __M__ ySQL
+> - __P__ HP / __P__ erl / __P__ ython
+
+- To configure a server, you need the __LAMP__ software bundle.
+  - A Linux server
+    - [Digital Ocean](https://www.digitalocean.com)
+  - A domain name
+    - [Namecheap](https://www.namecheap.com)
+    - Registering one only gives you the right to use that domain name for a
+      specific period of time.
+  - Authoritative DNS server
+    - [Bind](https://isc.org/bind)
+    - To host the domain
+    - For the nameservers, you can use `ns1.<domain>` and `ns2.<domain>`.
+  - A web server
+    - [Apache](https://httpd.apache.org) 
+    - [Nginx](https://www.nginx)
+    - To run a web application (a website)
+  - SQL Server
+    - [MySql](https://www.mysql.com)
+  - A web application
+    - [WordPress](https://wordpress.com)
+  - Security for the web application
+
+### Creating The Server
+
+1. Create a __Droplet__
+   - Linux-based virtual machines that run on top of virtualized hardware
+2. Use SSH Keys
+3. Connect with either console or ssh
+   - Log into root
+
+## Securing SSH With Key Authentication
+
+1. Generate a key-pair
+   - The secret key will stay on the client, and the public key will stay on the
+     server.
+   - ```shell
+     ssh-keygen -t rsa -b 2048 -C 'keys generated on Sept 2022'
+     ```
+       - `t` Type
+       - `b` Length of the keys in bits
+       - `C` Comment
+       - Do not enter a passphrase for the private key
+   - Use PuTTY keygen on Windows.
+   - Private key will be located in `~/.ssh`
+     - The public key will have a `.pub` extension.
+2. Go to Settings
+3. Click SSH Keys
+4. Paste your SSH keys
+5. Run on local host:
+   - ```shell
+     `ssh-copy-id <username>@<ip_address>`
+     ```
+     - The contents of the public key will be appended to the __authorized key__
+       file.
+6. Disable password authentication
+  - ```shell
+    vim /etc/ssh/sshd_config
+    ```
+  - Look for password authentication and change it to __no__.
+
+## Types of DNS Queries
+
+1. __Recursive__
+   - A recursive query is a kind of query, in which the DNS server, that 
+     received your query, will do all the job, fetching the answer, and giving 
+     it back to you. In the end, you’ll get the final answer.
+2. __Iterative__
+   - The DNS name server will not go and fetch the complete answer for your 
+     query but will give back a referral to other DNS servers, which might have 
+     the answer. Now it’s your job to query those servers and find the answer.
+
+## What Is a DNS Forwarder
+
+A __forwarder__ is another DNS server that will be queried recursively by our 
+server.
+
+A DNS server, configured to use a forwarder, behaves as follows:
+
+1. When the DNS server receives a query, it attempts to resolve this query.
+2. If the query cannot be resolved using local data, the DNS server forwards 
+   the query recursively to the DNS server that is designated as a forwarder.
+3. If the forwarder is not unavailable, the DNS server attempts to resolve the 
+   query by itself, using iterative queries.
+
+## Diving into the DNS Protocol and Installing a DNS Server (Bind9)
+
+> __Bind (Berkely Internet Name Domain)__
+
+1. Install `bind9`, `bind9utils`, and `bind9-doc` on server
+   - The name of the software is `bind9`, but the name of the process or daemon
+     is `named`.
+2. Set the server to IPV4 or IPV6 mode
+   1. Edit /etc/default/named
+   2. Add `-4` for IPV4 or `-6` for IPV6 to the end of the `OPTIONS` string
+3. Ask the server for an IP address
+   -  ```shell
+      dig -t a @localhost google.com
+      ```
+     - If you want to ask another server, write the IP address of that server 
+       instead of `localhost`.
+4. Configure the server
+   - __bind__ has many configuration files. The main one for the server is in
+     `/etc/bind/named.conf`
+     - `cat` this file to see the other options files.
+     - `/etc/bind/name.conf.options`
+       - Contains general server configuration files, such as:
+         - The interface on which it listens
+         - If it uses a forwarder
+         - Who is allowed to query the server
+     - `/etc/bind/name.conf.local`
+       - Contains the domains hosted on the server for which it's authoritative
+     - `/etc/bind/name.conf.default-zones`
+       - Contains information about the root servers and the default zones like
+         the `localhost`.
+5. Set forwarders for the server
+   - You can use google's:
+   - Add to `/etc/bind/named.conf.options` at the end, before the last closing
+     curly brace.
+    ```shell
+    forwarders {
+      8.8.8.8;
+      8.8.4.4;
+    };
+    ```
+6. Check that the dns server is working with a dns query to a site
+   ```shell
+   dig @localhost -t a parrotlinux.org
+   ```
+
+## Setting Up The Authoritative Bind9 DNS Server
+
+### To find out the authoritative servers for a domain:
+
+1. Get the nameservers for the Authoritative DNS
+   ```shell
+   dig -t ns <domain_name>
+   
+   >> dig -t ns google.com
+   ; <<>> DiG 9.18.6 <<>> -t ns google.com
+   ;; global options: +cmd
+   ;; Got answer:
+   ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 57726
+   ;; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 9
+   
+   ;; OPT PSEUDOSECTION:
+   [rashino@thearchdimension ~]$ dig -t ns google.com
+   
+   ; <<>> DiG 9.18.6 <<>> -t ns google.com
+   ;; global options: +cmd
+   ;; Got answer:
+   ;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 51936
+   ;; flags: qr rd ra; QUERY: 1, ANSWER: 4, AUTHORITY: 0, ADDITIONAL: 9
+   
+   ;; OPT PSEUDOSECTION:
+   ; EDNS: version: 0, flags:; udp: 512
+   ;; QUESTION SECTION:
+   ;google.com.                    IN      NS
+   
+   ;; ANSWER SECTION:
+   google.com.             51954   IN      NS      ns4.google.com.
+   google.com.             51954   IN      NS      ns2.google.com.
+   google.com.             51954   IN      NS      ns3.google.com.
+   google.com.             51954   IN      NS      ns1.google.com.
+   
+   ;; ADDITIONAL SECTION:
+   ns1.google.com.         51932   IN      A       216.239.32.10
+   ns1.google.com.         51954   IN      AAAA    2001:4860:4802:32::a
+   ns4.google.com.         51954   IN      A       216.239.38.10
+   ns4.google.com.         51927   IN      AAAA    2001:4860:4802:38::a
+   ns2.google.com.         51908   IN      A       216.239.34.10
+   ns2.google.com.         51954   IN      AAAA    2001:4860:4802:34::a
+   ns3.google.com.         51954   IN      A       216.239.36.10
+   ns3.google.com.         51954   IN      AAAA    2001:4860:4802:36::a
+   
+   ;; Query time: 10 msec
+   ;; SERVER: 68.105.28.11#53(68.105.28.11) (UDP)
+   ;; WHEN: Wed Sep 21 09:58:18 MST 2022
+   ;; MSG SIZE  rcvd: 287
+   ```
+   - `ANSWER SECTION` is the part that contains the names of the DNS servers for 
+     that host. From there
+2. Query the found nameservers for the IP addresses
+   - ```shell
+     dig -t a <nameserver>
+     ```
+     
+### Making The Server DNS Authoritative
+
+1. Check that bind9 service is running
+2. Edit `/etc/bind/named.conf.local`
+3. Add:
+   - ```shell
+     zone "<domain>" {
+         type master;
+         file "<zone_file>";  // Example zone file: "/etc/bind/db.crystalmind.academy";
+     };
+     ```
+4. Copy the zone file template to make your own, located in `/etc/bind/db.empty`
+
+### Creating Your Zone File
+
+#### Example File:
+
+```shell
+; BIND reverse data file for empty rfc1918 zone
+;
+; DO NOT EDIT THIS FILE - it is used for multiple zones.
+; Instead, copy it, edit named.conf, and use that copy.
+;
+$TTL	86400
+@	IN	SOA	ns1.crystalmind.academy. root.localhost. (
+			      2		; Serial
+			 604800		; Refresh
+			  86400		; Retry
+			2419200		; Expire
+			  86400 )	; Negative Cache TTL
+;
+@	IN	NS	ns1.crystalmind.academy.
+;@	IN	NS	ns2.crystalmind.academy.
+ns1	IN	A	167.99.135.210
+@ 	IN	MX 10 	mail.crystalmind.academy.
+crystalmind.academy.	IN	A	167.99.135.210
+www	IN	A	167.99.135.210
+mail	IN	A	167.99.135.210
+external	IN	A 	91.189.88.181
+public-dns	IN	A 	8.8.8.8
+```
+
+#### Making One
+
+Copy the zone file template to make your own, located in `/etc/bind/db.empty`
+
+```shell
+  cp /etc/bind/db.empty /etc/bind/db.<domain>
+     
+  # Zone File Template:
+  ; BIND reverse data file for empty rfc1918 zone
+  ;
+  ; DO NOT EDIT THIS FILE - it is used for multiple zones.
+  ; Instead, copy it, edit named.conf, and use that copy.
+  ;
+  $TTL    86400
+  @       IN      SOA     localhost. root.localhost. (
+                                1         ; Serial
+                           604800         ; Refresh
+                            86400         ; Retry
+                          2419200         ; Expire
+                            86400 )       ; Negative Cache TTL
+  ;
+  @       IN      NS      localhost.
+  ```
+
+- `IN` __Internet__ class.
+  - Other classes exist but are rarely used.
+- `@` Is the same as the base domain.
+  - I.e., `@=crystalmind.academy`
+- `TTL` is the default time to live, and is the time a DNS record can be 
+  cached on other DNS servers.
+  - When a non-authoritative DNS server is asking this authoritative DNS 
+    server for a record, this server will send the record and tell the other
+    record to store it in its cache for the `TTL` amount of seconds.
+- `SOA` __Start of Authority__ record.
+  - Mandatory for each domain
+- `NS` __Name Server__
+  - Mandatory for each domain
+  - Indicates which are the authoritative DNS servers
+    - Master & Slave
+- `A` __Address__
+1. Change `localhost` under `SOA` to your domain, and add a `.` to the end.
+   - A `.` at the end means they're fully qualified domain names.
+2. Change `localhost` under `NS` to your nameservers and add a `.`.
+3. Add an __Address__ line
+   - Use the name of the first section of your nameserver
+     ```shell
+     NS1     IN      A       <ip_address>
+     ```
+4. Add a __mail__ line
+   - __MX (Mail Exchanger)__
+   - ```shell
+     mail    IN      MX 10   mail.<domain>
+     ```
+     - Only necessary if you set up a mail server
+5. Add an IP address for the whole domain
+   - ```shell
+     ilovebigbooty.tk.        IN      A       143.198.102.26
+     ```
+6. Add an IP address for `www`
+   - ```shell
+     WWW     IN      A       143.198.102.26
+     ```
+7. Add an IP address for the mail server
+   - ```shell
+     mail    IN      A       143.198.102.26
+     ```
+8. Add an IP address for external
+   - ```shell
+     external        IN      A       91.189.88.181
+     ```
+9. Add an external-dns for other machines
+   ```shell
+   public-dns	IN	A 	8.8.8.8
+   ```
+10. Check for syntax errors by running:
+    ```shell
+    named-checkconf
+    named-checkzone <domain> <path_to_zone_file>  # /etc/bind/db.<domain>
+    ```
+11. Restart the server and check that it's working, looking that it loaded the 
+    serials.
+     - The serial number of the zone file provides a way for other servers (
+       especially secondary servers) to verify that the contents of a particular
+       zone file are up-to-date.
+       - If the serial number of a zone file hasn't changed since that zone file
+         was last loaded, the secondary servers figure that they can ignore the
+         file. 
+       - __Always update the SOA serial number when you make changes to a zone 
+         file__. _Just increment the value_.
+       
+## Installing a Web Server (__Apache2__)
+
+> Check the latest server popularity: [netcraft](https://news.netcraft.com/archives/category/web-server-survey/)
+
+1. Download __apache2__
+2. Adjust firewall so that the incoming connections to the web server are 
+   allowed.
+   - Only necessary if a firewall is enabled
+   - __ufw__ is installed and enabled on Ubuntu by default.
+   - `ufw allow 'Apache Full'`
+3. __[Optional]__ If you run the server on a private IP and want the public IP,
+   run: 
+   - `curl -4 ident.me` for the IPV4 public IP address.
+
+## Setting Up Virtual Hosting
+
+If you want to host more than one domain on an Apache web server that has a 
+single IP address, then you have to configure virtual hosting.
+
+- Apache on Ubuntu serves files to the clients from a directory called 
+  __DocumentRoot__ that is by default in `/var/www/html`
+  - Putting a file in here will display it when that link is used, but you need
+    multiple __DocumentRoots__ to host multiple sites on a single server.
+
+1. Create a directory for your domain in `/var/www/`
+2. Change the owner of your newly created directory to `www-data.www-data`
+   ```shell
+   chown -R www-data.www-data /var/www/<domain>
+   ```
+3. Change permissions of directory
+   ```shell
+   chmod 755 /var/www/<domain>
+   ```
+4. Create an index file there
+5. Configure apache to serve this content when someone is accessing the domain.
+   To do this, create a new virtual host file for apache.
+   1. Edit `/etc/apache2/sites-available/<domain>.conf`
+   2. ```shell
+      <VirtualHost: *:80>
+        ServerName <domain>
+        ServerAlias www.<domain>
+        DocumentRoot /var/www/<domain>
+        
+        ServerAdmin <existing_admin_email_username>@<domain>
+        ErrorLog /var/log/apache2/<domain>_error.log
+        CustomLog /var/log/apache2/<domain>_access.log combined
+      </VirtualHost>
+      ```
+6. Enable the virtual host
+   ```shell
+   a2ensite <virtual_host_file>
+   ```
+   - `a2ensite` is __Apache2 Enable Site__
+     - This creates a symlink in `sites-enabled` to a virtual host in 
+       `sites-available`.
+     - You can disable the site using `a2dissite <site>`
+
+### Important Apache Directories & Files
+
+In `/etc/apache2`, there are two directories for virtual hosts:
+
+- `sites-available`
+- `sites-enabled`
+  - Apache will load the files from here, __not__ `sites-available`
+
+## Securing Apache With OpenSSL and Digital Certificates
+
+HTTP is a clear text protocol, which means that it's not secure.
+
+- Anyone between the source and the destination can sniff the traffic.
+- __HTTPS__ is HTTP over OpenSSL
+
+There are two parts to this:
+
+1. Getting a digital certificate from a __Certificate Authority (CA)__
+   - [Comodo](https://ssl.comodo.com)
+   - [Lets Encrypt](https://letsencrypt.org)
+     - Provides __Cerbot__ which automates the process
+2. Configuring the Apache web server to use the certificate and encrypt the
+   connections to the clients using OpenSSL and other cryptographic protocols.
+
+The entire process of obtaining and installing a certificate is automated on
+both __Apache__ and __Nginx__.
+
+### Setting Up The Certificate
+
+
+1. Download __certbot__ and __python3-certbot-apache__ packages on the vps.
+   - __certbot__ and __certbot-apache__ on Arch.
+2. Request the __CA__ to issue a certificate to our domain.
+   ```shell
+   certbot -d <domain>
+   ```
+   - Should be the domain set up in the apache virtual host file
+   - Redirect HTTP traffic to HTTPS
+3. If there's any errors, check them in `/var/log/letsencrypt/letsencrypt.log`
+
+#### What did Letsencrypt Do?
+
+- Created a virtual host file in 
+  `/etc/apache2/sites-available/<domain>-ls-ssl.conf`
+- Enabled the OpenSSL module
+  - The config file is in `/etc/letsencrypt/options-ssl-apache.conf`
+- Enabled the virtual host
+- Created a service that runs twice a day and checks if the certificates are
+  expired or not, and renews them.
+  - `systemctl status certbot.timer` checks the renewal timer
+  - `certbot renew --dry-run` tests the renewal process
+
+## Installing PHP
+
+[PHP Download](https://php.net)
+
+- Wordpress, Magento, Joomla, Drupal, and PrestaShop are written in PHP
+- Install `php`, `php-mysql`, `libapache2-mod-php`.
+  - Check php version with `php -v`
+- Make sure the packages are installed correctly:
+  ```shell
+  >> vim /var/www/<domain>/test.php
+  
+  # Put this in the file
+  <?php
+    phpinfo();
+  ?>
+  ```
+  - Request with a browser after
+
+## Installing and Securing the MySql Server
+
+Run on the server:
+
+```shell
+apt update && apt install mysql-server
+
+# Check the status
+systemctl status mysql
+```
+
+__MySql is not secure by default. Run the pre-installed security script.__
+
+- The script: `mysql_secure_installation`
+- The script will remove some insecure default settings and lock down access
+  to the database server by removing some MySQL accounts and setting the admin
+  password.
+
+#### Options
+
+1. Use the validate password plugin
+2. Select __STRONG__ for password level
+3. Set the password 
+   - This is only a MySQL account named root that has nothing to do with the 
+     Linux system.
+     - It's another user with all the rights on the database server.
+   - If you disabled the use of Password Saving on the server, you can manually
+     set the password:
+     ```shell
+     >> mysql
+     >> ALTER USER 'root'@'localhost' IDENTIFIED WITH mysql_native_password BY '<password>';
+     >> exit
+     ```
+     - log in with `mysql -u root -p<password> [-h ip_address]`
+4. Reload the privileged tables
+5. Remove anonymous users
+6. Disallow login remotely
+7. Remove test database
+8. Reload privilege tables
+9. Check it worked using `mysql -u root`
+
+## Installing a Web Application (WordPress)
+
+1. Create a MySQL database
+   ```mysql
+   CREATE DATABASE <database_name>;
+   ```
+2. Create a User
+   ```mysql
+   CREATE USER '<username>'@'localhost' IDENTIFIED BY '<password>';
+   ```
+3. Grant all privileges
+   ```mysql
+   GRANT ALL PRIVILEGES ON <database>.* TO '<username>'@'localhost';
+   ```
+4. Flush privileges to reload them
+   ```mysql
+   FLUSH PRIVILEGES;
+   ```
+5. Download the latest version of WordPress to `/tmp`
+   ```shell
+   # Download wordpress
+   wget https://wordpress.org/latest.tar.gz
+   # Extract the archive
+   tar -xzvf latest.tar.gz
+   # Move any contents in the DocumentRoot directory
+   rm -rf /var/www/<domain>/*
+   # Move the contents to the DocumentRoot directory where the contents reside
+   mv wordpress/* /var/www/<domain>
+   # Change the ownership of the files
+   chown -R www-data.www.data /var/www/<domain>
+   ```
+6. Finalize the installation using the web interface
+   - Access the website and it will take you there
+
+## Securing WordPress
+
+[WordPress Security Blog](https://wordpress.org/about/security)
+[WordPress Security Tips](https://www.wpbeginner.com/wordpress-security/)
+
+1. Always use the __latest version__ of WordPress and keep all plugins up to date.
+2. Use only __strong passwords__ (min. 10 random characters including special ones).
+3. __Limit login attempts__ using a plugin or a WAF.
+4. Install a security plugin or a WAF (Web Application Firewall). 
+   - Example: __WordFence__.
+5. Add __2-step verification__ (using a security plugin).
+6. Protect __wp-admin__ directory (source IP access or username and passwords).
+7. __Make backups__ regularly and test them.
 
 # Section 20: Bash Shell Scripting
 
