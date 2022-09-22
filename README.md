@@ -4950,6 +4950,8 @@ nmap -p 80 -iL hosts.txt
 nmap -n -iL hosts.txt -p 80 -oN output.txt
 ```
 
+## Intro To Bash Shell Scripting
+
 # Section 15: Software Management
 
 ## General Notes
@@ -6373,15 +6375,973 @@ __MySql is not secure by default. Run the pre-installed security script.__
 6. Protect __wp-admin__ directory (source IP access or username and passwords).
 7. __Make backups__ regularly and test them.
 
-a
-
 # Section 20: Bash Shell Scripting
 
 ## General Notes
 
-# Section 21: Challenges - Bash Shell Scripting
+- To check which shell is being used: `echo $0`
+- There are multiple shells. To check which ones you have, run: 
+  `cat /etc/shells`
+  - The default shell of a user can be seen in `/etc/passwd` on the last column.
+- It's common practice to use a name like `bin` in the user's home directory
+  for scripts a user creates.
+- Shell scripts should have the `.sh` extension to hint to humans what type of
+  file it is.
 
-## General Notes
+## Bash Aliases
+
+A shortcut to a command.
+
+```shell
+# List all aliases
+alias
+
+# Create a new alias
+alias <alias_name>="<alias_command>"
+
+# Remove an alias
+unalias <alias_name>
+```
+
+- Aliases are only available in the terminal they were defined in.
+- To make an alias permanent, declare it in either:
+  - `~/.bash_profile`
+  - `~/.bashrc`
+- Newly created aliases will only be set in other terminals after a restart,
+  unless you run `source ~/.bashrc`
+
+## Commands - Aliases
+
+```shell
+##########################
+## Bash Aliases
+##########################
+ 
+# listing all Aliases
+alias
+ 
+# creating an alias:  alias_name="command"
+alias copy="cp -i"
+ 
+# to make the aliases you define persistent, add them to ~/.bashrc
+ 
+# removing an alias: unalias alias_name
+unalias copy
+ 
+## Useful Aliases ##
+alias c="clear"
+alias cl="clear;ls;pwd"
+alias root="sudo su"
+alias ports="netstat -tupan"
+alias sshconfig="sudo vim /etc/ssh/sshd_config"
+alias my_server="ssh -p 3245-l user100 80.0.0.1"
+alias update=”sudo apt update && sudo apt dist-upgrade -y && sudo apt clean”
+alias lt="ls -hSF --size -1"
+alias ping='ping -c 5'
+ 
+# Interactive File Manipulation
+alias cp="cp -i"
+alias mv="mv -i"
+alias rm="rm -i"
+ 
+## Important alias ##
+# This may look a bit confusing, but essentially, 
+# it makes all of the other aliases you define function correctly when used with sudo 
+alias sudo='sudo '      # use single quotes, not double quotes.
+```
+
+## Intro To Bash Shell Scripting
+
+Shell scripts are great for task automation.
+
+### Simple Shell Script
+
+First create the directory, then open a new text file with your favorite editor.
+
+#### Script:
+```shell
+mkdir -p dir1
+echo "some text" > dir1/file.txt
+ls -l dir1
+cat dir1/file.txt
+```
+
+#### Run the script:
+
+##### Option 1
+
+1. Change the permissions to `700` using `chmod 700 <filename>`.
+2. `<path_to_your_script>`
+   - The terminal looks for commands from the `PATH` variable. You need to run
+     your script by putting the absolute or relative path to your script since
+     it's not there.
+
+#### Option 2
+
+1. Run `/usr/bin/bash <path_to_your_script>`
+   - This tells bash to run your script
+
+## The Bash Shebang and Comments
+
+For executable scripts, the system expects in the first line a __shebang__ that
+indicates which program to run as interpreter with the script file as its
+argument.
+
+### Shebangs
+
+```shell
+#!<path_to_interpreter>
+```
+
+- Can be __Bash__, __Python__, __PHP__, etc.
+
+#### Example Python File:
+
+```python
+#!/usr/bin/python
+import sys
+print(sys.version)
+```
+
+- Don't forget to `chmod 700 <python_file>`
+
+### Comments
+
+Bash ignores everything after the `#`, except for the first line in the file.
+
+```shell
+#!/bin/bash
+
+# This is a comment
+#This is a comment
+###This is also a comment
+echo "Some test"  # This is a comment on the end of a command
+```
+
+- Bash does not support multi-line comments
+
+### Setting Line Numbers and Syntax Persistent
+
+```shell
+echo "set nu" >> ~/.vimrc
+echo "syntax on" >> ~/.vimrc
+```
+
+## Running Scripts
+
+1. The most common one is adding the execution permission and running it with its
+   absolute path.
+   - The script is executed in a sub-shell (a new one)
+2. Type the name of the interpreter followed by the script
+   - This overrides the __shebang__ directive.
+3. Use the `source` command.
+   - `source <filename`
+   - Does not require execution permissions
+   - Reads and executes commands from the file specified as its argument in the
+     current shell environment.
+     - Executes the script in the same environment
+
+## Variables in Bash
+
+A variable is a name for a memory for a location where a value, which can be
+manipulated, is stored.
+
+- Giving a variable a value is known as __assigning a value to a variable__,
+  and getting the value stored in a variable is known as __referencing the value 
+  of a variable__.
+  - Get the value of a variable in a script by prefixing the variable with `$`.
+
+```shell
+<var_name>=<value>
+
+# Examples
+billy=5
+os=Linux
+
+>> echo $billy
+5
+
+>> echo $os
+
+# Unset a variable
+unset <variable>
+```
+
+- Bash is __weakly-typed__
+- Variable names should be descriptive and remind you of the name they hold.
+- Variables cannot start with special characters,spaces, or numbers.
+  - It __can__ start with an underscore.
+- Environmental variables that are introduced by the OS, shell startup scripts,
+  by the shell itself are usually all in capitals.
+- To declare a __constant__ that is read-only:
+  ```shell
+  declare -r <var_name>=<var_value>
+  ```
+
+### Double vs Single Quotes
+
+```shell
+>> os=Linux
+>> age=5
+
+>> echo "My os is $os and my age is $age"
+My os is Linux and my age is 5
+
+>> echo 'My os is $os and my age is $age'
+My os is $os and my age is $age
+
+# To cancel out the dollar sign
+>> echo \$os
+$os
+
+# Making a variable have another variable's value
+>> myvar="$os $age"
+```
+
+- To use a format specifier, you need use a double quote instead of a single.
+
+> To get a list of all shell variables and functions: `set`
+>   - Run `set -o posix` to display on the environment and shell variables
+
+### Script 
+
+```shell
+#!/usr/bin/bash
+
+filename="/etc/passwd"
+echo "Number of lines"
+wc -l $filename
+echo "##################"
+echo "First 5 Lines:"
+head -n 5 $filename
+
+echo "##################"
+echo "Last 7 lines:"
+tail -n 7 $filename
+```
+
+## Environment Variables
+
+- Environment variables can be used to change your default system.
+
+### The Two Kinds of Variables
+
+1. __Environment Variables__
+   - Defined for the current shell and are inherited by any child shells or
+     processes.
+   - They are used to pass information to processes that are spawned from the
+     current shell.
+   - Displayed using `env` or `printenv`
+     - `printenv <variable1>[ <variable2> ... <variable_n>]` can print specific 
+       environment variables
+2. __Shell Variables__
+   - Are contained exclusively within the shell in which they were set or 
+     defined
+   - Displayed using `set`
+
+__User configuration file: `~/.bashrc`__\
+__System-wide configuration file: `/etc/bash.bashrc`__ and __`/etc/profile`__
+
+#### To create a new environment variable, you use:
+
+- ```shell
+  export <var_name>=<var_value>`
+  ```
+  - To create a system-wide variable, declare it in `/etc/profile` or 
+    `/etc/bash.bashrc`
+
+## Getting User Input
+
+```shell
+read <var_name>
+read -p "Enter your name: " name
+read -s -p "Enter password: " password
+```
+
+- `read` Gets the user's input and stores it in a variable
+- `p` Displays text before getting user input.
+- `s` Hides text being entered. Does not echo it.
+
+### Sample Script To Drop All Packets From Specific IP
+
+```shell
+#!/bin/bash
+read -p "Enter the IP address of domain to b lock: " ip
+iptables -I INPUT -s $ip -j DROP
+echo "The packets from $ip will be dropped"
+```
+
+## Special Variables and Positional Arguments
+
+Many scripts require arguments (The scripts/commands after the command in 
+terminal).
+
+- They are by default separated by spaces, also known as the __default internal
+  field separator__.
+
+```shell
+./script.sh filename1 dir1 10.0.0.1
+```
+- `$0` is the name of the script itself (`script.sh`).
+- `$1` is the first positional argument (`filename1`)
+- `$2` is the second positional argument (`dir1`)
+- `$3` is the last argument of the script (`10.0.0.1`)
+- `$9` would be the ninth argument and `${10}` the tenth
+- `$#` is the number of the positional arguments
+- `"$*"` is a string representation of all positional arguments: 
+  `$1`, `$2`, `$3` `....`
+- `$?` is the most recent foreground command exit status
+
+### Example Scripts
+
+#### Positional Arguments
+
+```shell
+#!/bin/bash
+echo "\$0 is $0"
+echo "\$1 is $1"
+echo "\$2 is $2"
+echo "\$3 is $3"
+echo "\$* is $*"
+echo "\$# is $#"
+```
+
+#### Display & Compress
+
+```shell
+#!/bin/bash
+echo "Displaying the contents of $1 ..."
+sleep 2
+cat $1
+echo 
+echo "Compressing $1 ..."
+sleep 2
+tar -cjvf "$1.tar.gz" $1
+```
+
+## Coding - Variables in Bash
+
+```shell
+##########################
+## Bash Variables
+##########################
+ 
+# defining a variable: variable_name=value
+# variable names should start with a letter or underscore and can contain letters, digits and underscore
+os="Kali Linux"
+version=10
+ 
+# referencing the value of a variable (getting the variable value): $variable_name
+echo $os
+echo $version
+ 
+# defining a read-only variable (constant)
+declare -r temperature=100
+ 
+# removing (unsetting) a variable
+unset version
+ 
+# listing all environment variables
+env
+printenv
+ 
+# searching for an environment variable
+printenv PATH
+env | grep -i path
+ 
+# creating new environment variables for the user: in ~/.bashrc add export MYVAR=”value” 
+export IP="80.0.0.1"
+ 
+# changing the PATH
+export PATH=$PATH:~/scripts     # in ~/.bashrc
+ 
+# getting user input
+read MY_VAR
+echo $MY_VAR
+ 
+# displaying a message
+read -p "Enter the IP address: " ip
+ping -c 1 $ip
+ 
+read -s -p "Enter password:" pswd
+echo $pswd
+ 
+ 
+### SPECIAL VARIABLES AND POSITIONAL ARGUMENTS ###
+./script.sh filename1 dir1
+ 
+$0 => the name of the script itself (script.sh)
+$1 => the first positional argument (filename1)
+$2 => the second positional argument (dir1)
+...
+${10} => the tenth argument of the script
+${11} => the eleventh argument of the script
+ 
+$# => the number of the positional arguments
+"$*" => string representation of all positional argument
+$? => the most recent foreground command exit status
+```
+
+## `if`, `elif`, `else`
+
+To see all testing conditions that can be used: `man test`
+
+```shell
+if [ some_condition_is_true ]
+then
+//execute this code
+elif [ some_other_condition_is_true ]
+then
+//execute_this_code
+else
+//execute_this_code
+fi
+```
+
+### Single Square Brackets `[]` vs Double Square Brackets `[[]]`
+
+- `[]` is the classic way of testing and is older
+- `[[]]` is the newer way of testing and __is safer__.
+  - They prevent __word-splitting__, and you don't need to double quote string
+    variables _(even though it's good practice)_.
+    - __word-splitting__: String variables that contain spaces.
+  - They also have some other nice features lilke __regular expression__ 
+    matching.
+
+### Sample Scripts:
+
+```shell
+#!/bin/bash
+if [[ -f "$1" ]]
+then
+        echo "The argument is a file, displaying its contents ..."
+        sleep 1
+        cat $1
+elif [[ -d "$1" ]]
+then 
+        echo "The argument is a directory, running ls -l ..."
+        sleep 1
+        ls -l $1
+else
+        echo "The argument ($1) is neither a file nor a directory."
+fi
+
+```
+
+- `f <value>` Returns true if `value` is a regular file.
+- `f <value>` Returns true if `value` is a directory.
+
+## Testing Conditions For Numbers
+
+```shell
+INTEGER1 -eq INTEGER2
+      INTEGER1 is equal to INTEGER2
+
+INTEGER1 -ge INTEGER2
+      INTEGER1 is greater than or equal to INTEGER2
+
+INTEGER1 -gt INTEGER2
+      INTEGER1 is greater than INTEGER2
+
+INTEGER1 -le INTEGER2
+      INTEGER1 is less than or equal to INTEGER2
+
+INTEGER1 -lt INTEGER2
+      INTEGER1 is less than INTEGER2
+
+INTEGER1 -ne INTEGER2
+      INTEGER1 is not equal to INTEGER2
+```
+
+### Example Script:
+
+```shell
+#!/bin/bash
+read -p "Enter your age: " age
+if [[ $age -gt 18 ]] && [[ &age -le 100]];then
+  echo "Congrats on growing up!"
+elif [[ $age -eq 18 ]]
+  echo "You just barely made it!" 
+else
+  echo "You'll get there eventually!"
+fi
+```
+
+## Command Substitution
+
+Running a script and storing it's output in a variable for later use.
+
+### Option 1
+
+Write the command in backticks (__`__)
+
+```shell
+>> now=""`date`""
+>> echo $now
+Thu Sep 22 11:32:33 MST 2022
+```
+
+### Option 2
+
+Write the command between `$()`
+
+```shell
+>> users="$(who)"
+>> echo $users
+user  tty1         2022-09-22 07:34 (:0)
+
+>> output="$(ps -ef | grep bash)"
+>> echo output
+rashino 816 809 0 07:34 ? 00:00:00 /usr/bin/bash /usr/local/bin/autoadb/config/autoadb rashino 4494 1229 0 07:43 pts/2 00:00:00 /bin/bash rashino 18359 1229 0 08:56 pts/3 00:00:00 /bin/bash rashino 41426 18359 0 11:33 pts/3 00:00:00 /bin/bash rashino 41428 41426 0 11:33 pts/3 00:00:00 grep bash
+```
+
+## Comparing Strings
+
+- A single `=` is used when comparing strings in an `if` statement.
+- Write it like `if [[]]; then` to save time.
+- To check is a substrting is in another string:
+  ```shell
+  str1="Nowadays, Linux powers everything on the internet"
+  if [[ "$str1" == *"Linux"* ]];then
+  ```
+  - `== *""*` Used for testing substrings.
+
+## Testing Network Connections
+
+```shell
+#!/bin/bash
+
+output="$(ping -c 3 $1)"
+```
+
+- To see the output on multiple lines, enclose the variable in double quotes.
+
+## Coding - If...Elif...Else Statements
+
+```shell
+# if [ some_condition_is_true ]
+# then
+#   //execute this code
+# elif [ some_other_condition_is_true ]
+# then
+#   //execute_this_code
+# else
+#   //execute_this_code
+# fi
+## Examples:
+ 
+i=1
+if [[ $i -lt 10 ]]
+then
+   echo "i is less than 10."
+fi
+#################
+i=100
+if [[ $i -lt 10 ]]
+then
+   echo "i is less than 10."
+else
+   echo "i is greater than or equal to 10."
+fi
+################
+i=10
+if [[ $i -lt 10 ]]
+then
+   echo "i is less than 10."
+elif [[ $i -eq 10 ]]
+then
+   echo "i is 10"
+else
+   echo "i is greater than or equal to 10."
+fi
+ 
+################
+### TESTING CONDITIONS => man test ###
+ 
+### For numbers (integers) ###
+# -eq   equal to
+# -ne   not equal to
+# -lt   less than
+# -le   less than or equal to
+# -gt   greater than
+# -ge   greater than or equal to
+ 
+# For files:
+# -s    file exists and is not empty
+# -f    file exists and is not a directory
+# -d    directory exists
+# -x    file is executable by the user
+# -w    file is writable by the user
+# -r    file is readable by the user
+ 
+# For Strings
+# =     the equality operator for strings if using single square brackets [ ]
+# ==    the equality operator for strings if using double square brackets [[ ]]
+# !=    the inequality operator for strings
+# -n $str   str is nonzero length
+# -z $str   str is zero length
+ 
+# &&  => the logical and operator
+# ||  => the logical or operator
+```
+
+## For Statements
+
+```shell
+for item in LIST
+do
+    COMMANDS
+done
+```
+
+### Example Scripts:
+
+#### Iterating Through a List
+
+```shell
+for os in Ubuntu CentOS Slackware Kali
+do
+  echo "os is $os"
+done
+```
+
+#### Iterating Through a Sequence Expression
+
+```shell
+for num in {1..10..2}
+do
+  echo "num is $num"
+done
+```
+
+- `{start..end..step}`
+
+#### Iterating Through The Output Of A Command
+
+##### Example 1
+
+```shell
+for item in ./*
+do
+  if [[ -f "$item" ]]
+  then
+      echo "Displaying the contents of $item"
+      sleep 1
+      cat "$item"
+      echo "#######################"
+  fi
+done
+```
+
+##### Example 2
+```shell
+for file in *.txt
+do
+  mv "$file" "renamed_by_script_$file"
+done
+```
+
+### C Style For Loop
+
+```shell
+#!/bin/bash
+for ((i=0;i<=50;i__))
+do
+  echo "i=$i"
+done
+```
+
+## Dropping a List of IP Addresses Using a For Loop
+
+```shell
+#!/bin/bash
+for ip in $(cat $1)
+do
+        if [[ -f "$ip" ]]
+        then
+                echo "Dropping packets from $ip"
+                iptables -I INPUT -s $ip -j DROP
+        fi  
+done
+```
+
+## The While Loop
+
+```shell
+while CONDITION
+do
+  COMMANDS
+done
+```
+
+- `:` is a bash built-in command that always returns true.
+- To perform atithemtic operations, use double parenthesis `(())`
+  - `((i++))`
+
+### Example Scripts
+
+```shell
+#!/bin/bash
+i=0
+
+while [[ $i -lt 10 ]]
+do
+  echo "i: $i"
+  ((i++))  # let i=i+1
+done
+```
+
+## Case Statements
+
+Allows us to test strings and numbers.
+
+- A simpler form of `if..elif..else`
+
+```shell
+CASE EXPRESSION in
+  PATTERN_1)
+    STATEMENTS
+    ;;
+  PATTERN_2)
+    STATEMENTS
+    ;;
+  PATTERN_n)
+    STATEMENTS
+    ;;
+  *)
+    STATEMENTS
+    ;;
+esac
+```
+
+- A pattern and it's associated commands are known as a __clause__ and each 
+  clause must be terminated with two semicolons.
+- `*)` Is the default clause
+
+### Example Scripts
+
+```shell
+#!/bin/bash
+
+echo -n "Enter your favorite pet: "
+read PET
+
+case "$PET" in
+        dog)
+              echo "Your favoirte pet is the dog"
+              ;;
+        cat|Cat)
+              echo "You like cats"
+              ;;
+        fish|"African Turtle")
+              echo "Fish or turtles are great!"
+              ;;
+        *)
+              echo "Those pets are pretty cool too!"
+              ;;
+esac
+```
+
+- `n` on `echo` doesn't add a new line.
+
+## Functions in Bash
+
+Bash functions are limited.
+
+```shell
+#!/bin/bash
+
+# Method 1
+function print_something() {
+  echo "I'm a simple function"
+}
+
+# Method 2
+display_something() {
+  echo "Hello functions!"
+}
+
+function create_files() {
+  echo "Creating $1"
+  touch $1
+  chmod 400 $1
+  echo "Creating $2"
+  touch $2
+  chmod 600 $2
+}
+
+function lines_in_file() {
+  grep -c "$1" "$2"
+}
+
+# To call the functions
+display_something
+print_something
+create_files aa.txt bb.txt
+
+# To get a return value
+n=$(lines_in_file "usb" "/var/log/dmesg")
+echo $n
+```
+
+- The parenthesis are only for decoration in __bash__.
+- To pass data to a function, you pass them like this 
+  `function arg1 arg2 ... arg_n`
+- `return` in __bash__ only returns the exit status of the function.
+  - If you want a real `return` value, use a __command substitution__.
+
+## Variable Scope In Functions
+
+__In Bash, all variables are by default Global.__
+
+```shell
+#!/bin/bash
+var1="AA"
+var2="BB"
+
+function func1() {
+  local var1="XX"
+  echo "Inside func1: var1=$var1, var2=$var2"
+}
+
+func1
+```
+
+- `local` can only be used inside a function and makes a local variable.
+  - It's good practice to use local variables inside functions.
+
+## Bash Menus (Select)
+
+```shell
+select ITEM in LIST
+do
+  COMMANDS
+done
+```
+
+### Example Scripts
+
+```shell
+#!/bin/bash
+PS3="Choose your country: "
+select COUNTRY in Germany France USA "United Kingdom" Quit
+do
+  case $REPLY in
+    1)
+      echo "You speak German"
+      ;;
+    2)
+      echo "You speak French"
+      ;;
+    3)
+      echo "You speak English"
+      ;;
+    4)
+      echo "You speak British English"
+      ;;
+    5)
+      echo "Quitting..."
+      sleep 1
+      break
+      ;;
+    *)
+      echo "I don't know what you speak"
+      ;;
+    esac
+    
+done
+```
+
+- `REPLY` is created automatically and is pre-defined.
+- `PS3` is the pre-defined variable that sets the prompt.
+- The `select` loop will continue to run until it encounters a `break`.
+
+## System Administration Script Using Menus
+
+```shell
+ 1 #!/bin/bash
+  2 PS3="Your choice: "
+  3 select ITEM in "Add User" "List All Proccesses" "Kill Proccess" "Install Program" "Quit"
+  4 do
+  5         if [[ $REPLY -eq 1 ]]
+  6         then
+  7                 read -p "Enter the username: "
+  8                 output="$(grep -w $username /etc/passwd)"
+  9                 if [[ -n "$output" ]]
+ 10                 then
+ 11                         echo "The username $username already exists."
+ 12                 else
+ 13                         sudo useradd -m -s /bin/bash "$username"
+ 14                         if [[ $? -eq 0 ]]
+ 15                         then
+ 16                                 echo "The user $username was added successfully"
+ 17                                 tail -n 1 /etc/passwd
+ 18                         else
+ 19                                 echo "There was an error adding the user"
+ 20                         fi
+ 21                 fi
+ 22         elif [[ $REPLY -eq 2 ]]
+ 23         then
+ 24                 echo "Listing all processes..."
+ 25                 sleep 1
+ 26                 ps -ef
+ 27         elif [[ $REPLY -eq 3 ]]
+ 28         then
+ 29                 read -p "Enter the process to kill: " process
+ 30                 pkill $process
+ 31         elif [[ $REPLY -eq 4 ]]
+ 32         then
+ 33                 read -p "Enter the program to install: " program
+ 34                 sudo pacman -Sy $program
+ 35         elif [[ $REPLY -eq 5 ]]
+ 36         then
+ 37                 echo "Quitting..."
+ 38                 sleep 1
+ 39                 exit
+ 40         else
+ 41                 echo "Invalid selection..."
+ 42 fi
+ 43 done
+```
+
+## Running a DoS Attack
+
+This is a DoS attack that makes use of the `fork` system call to create an 
+infinite number of processes.
+
+1. Create the script
+   ```shell
+   $0 && $0 &
+   ```
+2. `chmod +x <filename>`
+3. Run the script
+
+The script runs itself twice, then goes into the background for another 
+recursive call.
+
+### How To Prevent This (ulimit)
+
+Shows the number of available processes.
+
+```shell
+ulimit -u
+```
+
+- `u` Shows the number of available processes for the current user.
+- `a` Shows the number of available processes for to the shell and the processes
+  it creates.
+
+#### Edit This:
+
+```shell
+>> sudo vim /etc/security/limits.conf
+
+# At the end, add 
+<user>   hard nproc <num_of_processes>
+@<group>  hard nproc <num_of_processes>
+```
+
+- At the end, add `student hard nproc <num_of_user_processes>`
 
 # Section 22: Security: Information Gathering and Sniffing Traffic
 
