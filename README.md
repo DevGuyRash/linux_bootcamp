@@ -7605,11 +7605,165 @@ tcpdump -i eth0 port 80 or port 443
 
 ## General Notes
 
+- __Interplanetary File System (IPFS)__ is a protocol designed to create a 
+  permanent and decentralized method of storing and sharing files.
+  - Based on __BitTorrent__ and __Git__
+  - Used mainly for saving and delivering static content such as images, videos,
+    documents, etc.
+- __IPFS aims to replace HTTP and build a better web.__
+- A machine that runs IPFS software to store and retrieve files is called an
+  IPFS node.
+- There is also a __localhost__ accessible via the [Web Console](localhost:5001/webui)
+- Download the [browser add-on](https://github.com/ipfs/ipfs-companion) for 
+  easier management.
+
+### IPFS Properties
+
+- IPFS is a peer-to-peer, decentralized, and distributed file system.
+  - It's a filesystem, because it has directories and files that can be mounted.
+  - There's no central server or single point of failure.
+- IPFS is a CDN
+- IPFS is also a fault-tolerant with zero downtime
+  - Once a file is requested from an IPFS node, it gets cached by other nodes,
+    making it impossible to remove, even if the original node removes it.
+- IPFS is censorship-resistant
+  - Once a file is added and cached, it cannot be deleted.
+  - The block of wikipedia in Turkey 2017-2020 is a good example.
+- IPFS uses content address (not location addressing like HTTP)
+
+### Content Addressing vs Location Addressing
+
+#### Location Addressing
+
+- Contents is accessed by location (_https://www.servername.com/file.pdf_)
+- Whoever controls that location controls the content.
+
+#### Content Addressing
+
+- Files aren't anymore accessed based on __"where they are"__, but based on
+  __"what they are"__.
+  - Works based on hash. All files are cryptographically hashed, and this 
+    __unique__ hash is the address of the file.
+- There is no location of the files, no one controls the files.
+
+#### Pinning
+
+Pinning is the mechanism that allows you to tell IPFS to always keep a given
+object and never remove it.
+
+- IPFS has an aggressive caching mechanism that keeps an object locally 
+  short-term after someone performs any IPFS operation on it.
+  - These objects may get regularly garbage-collected or removed. __Pinning__
+    prevents this.
+  - IPFS objects added with the `ipfs` command are pinned recursively by
+    default.
+    - The file will exist as long as someone keeps it.
+
+
+### Sending Files To An IPFS Network
+
+```shell
+# Adding a file
+sudo ipfs add <filename>
+
+# Retrieving a file
+https://ipfs.io/<file_hash>
+```
+
+## Installing IPFS On Linux
+
+[IPFS](https://ipfs.io/)
+
+- The desktop application comes with an automatic update mechanism.
+
+__Run the install script as root as it will move the install directory to 
+`/usr/local/bin`__.
+
+### Setting Up The IPFS Node
+
+#### Step 1: Initialize The Repo
+
+```shell
+>> ipfs init
+generating ED25519 keypair...done
+peer identity: 12D3KooWDEuu28k3Sip4DkEf4Dg7kiNCuoRp4WqKZ9WAZeBWYZUy
+initializing IPFS node at /root/.ipfs
+to get started, enter:
+
+        ipfs cat /ipfs/QmQPeNsJPyVWPFDVHb77w8G42Fvo15z4bG2X8D2GhfbSXc/readme
+```
+
+- The `peer identity` is your node's ID
+  - Run `ipfs id` to get it if you need it.
+
+#### Step 2: Start The Daemon
+
+```shell
+sudo ipfs daemon
+```
+
+- This will join your ipfs node to the public network. It will store and server
+  small bits of data to the network.
+- IPFS alo uses a peer discovery mechanism similar to BitTorrent.
+- IPFS uses __DHT (Distributed Hash Table)__
+
+### To see a list of IDs of peers:
+
+```shell
+sudo ipfs swarm peers
+```
+
+### Retrieving a File
+
+```shell
+sudo ipfs cat /ipfs/<file_hash> > <filename>
+```
+
+## Running an IPFS Node On Linux
+
+An IPFS node is an IPFS client that serves the network.
+
+1. Create a directory and put some test file
+2. Add the directory to IPFS
+   ```shell
+   sudo ipfs add - r <directory_name>
+   ```
+   - `r` Recursive
+3. Get the file at:
+   1. __ipfs.io/ipfs/<hash>__
+      - ipfs.io is one of the IPFS gateways (the main one).
+   2. __localhost:<port>/ipfs/<hash>
+   3. `sudo ipfs ls <hash>`
+      - To list the contents of any directory.
+
+## Pinning Objects
+
+An IPFS file is lost when there's no peer that stores the file.
+
+```shell
+# List all pinned ipfs objects
+sudo ipfs pin ls --type=all
+
+# Remove a pin
+sudo ipfs pin rm <hash>
+
+# Run the garbage collector
+sudo ipfs repo gc
+```
+
+- If you're only running a local node that's always on, pinning the object may 
+  be enough.
+- Use a __pinning service__ if you need to keep your data from getting
+  removed.
+  - [Pinata](https://www.pinata.cloud/)
+  - [Infura](https://infura.io/)
+  - [Eternum](https://www.eternum.io/)
+
 # Section 24: Security: Netfilter and Iptables Firewall
 
 ## General Notes
 
-# Section 25: Challenges - Netfilter adn Iptables
+# Section 25: Challenges - Netfilter and Iptables
 
 ## General Notes
 
