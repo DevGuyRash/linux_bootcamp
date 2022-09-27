@@ -7347,6 +7347,260 @@ ulimit -u
 
 ## General Notes
 
+
+## `nmap`
+
+__nmap__ is a network discovery and security auditing tool.
+
+- [nmap GUI](https://nmap.org/zenmap/)
+
+- TCP Scans:
+  - SYN Scan: `-sS` _(root only)_
+    - Most popular scan and can scan thousands per second if there's no 
+      firewall.
+    - __Does not open complete TCP connections__, so it's stealthy.
+      - Often referred to as half-open scanning
+    - Sends a __SYN__ packet as if it's going to open a connection, the waits 
+      for a response.
+    - A `syn ack` __(SYN Acknowledgement)__ indicates the port is listening,
+      while a `resest` indicates that the port is closed.
+      - If no response is received, the port is marked as __filtered__.
+  - Connect Scan: `-sT`
+    - _Default scan for non-root users._
+- UDP Scan: `-sU`
+- ICMP Scan: `-sn` or `-sP`
+
+Format
+```shell
+nmap -s[char] [ip_address]
+```
+
+- `s` Scan
+- `char` Type to scan for
+    - SYN
+    - TCP
+    - UDP
+    - ICMP
+
+### TCP
+
+```shell
+# TCP SYN Scan
+nmap -sS -p 22,100 -sV 192.168.0.1
+
+# Scan all ports
+nmap -sS -p- -sV 192.168.0.1
+```
+
+- `p 22,100` Scans both ports manually
+- `sV` Version information that gives details about what applications are using 
+  that port.
+- `p-` Scans all ports.
+  - Pressing `Enter` will say the percentage of how muh has already been done.
+  - Can take a very long time.
+
+### UDP
+
+- Slower than `TCP`
+
+```shell
+nmap -sU localhost
+```
+
+## `arp` Scanning
+
+Useful if there are hosts on the network that want to remain hidden or stealthy
+and do not respond to commands like `ping`, or tcp/udp scans.
+
+- Package is called `arp-scan`
+
+#### arp
+
+```shell
+arp -an
+```
+
+- Firewalls do not block `arp` because it's not routable.
+- You can find wire[d|less] hosts connected to your __lan__.
+
+### `arp-scan`
+
+```shell
+arp-scan -I <interface_name> -l
+```
+
+- `I` Specifies an interface
+  - If you don't specify this, it will scan the system interfaces for the 
+    lowest numbered configured __UP__ interface, excluding __loopback__.
+- `l` Scans the localhost
+
+`arp-scan` is a very noisy tool and it can be easily discovered that a scan is
+happening.
+
+- If you want to be stealthier, then use `netdiscover`.
+
+### `netdiscover`
+
+Both a __passive__ and __active__ tool.
+
+```shell
+netdiscover
+
+# Examples
+netdiscover -i enp0s1 -r 192.168.0.0/24
+```
+
+- the active mode where it uses `arp` to send packets to discover which hosts
+  are on the network.
+- `i` specifies an interface.
+  - If one is not specified, the first available one will be used.
+- `r <ip_address>/<mask>` Scans a given range instead of __auto-scan__.
+- `p` Enables passive mode
+  - Does not send anything, only sniffing the traffic.
+  - Monitors `arp` packets sent by other programs.
+
+## Hacking Google Searches (GHDB - Google Dorking)
+
+A computer hacking technique that uses Google search to find security holes in 
+the configuration that websites use, using advanced queries.
+
+- `"<string>"` Search must include `string`.
+- Narrow the search to the latest results
+  - Click Tools, then choose a time interval.
+  - 1 Year should be fine.
+- `filetype`: Specify the filetype.
+  - E.g., `filetype:pdf`
+- `-` Tells google to __not__ include results about that.
+- `site` operator limits the site to a single one.
+- `intitle` Limits the results to webpages containing the word given in the
+  title.
+- `|` Or operator
+- `(<string>|<string>)` Double parenthesis allows use of an expression
+- [Google Advanced Search](https://www.google.com/advanced_search)
+
+## Using Wireshark For Packet Sniffing and Analyzing
+
+Wireshark is used to monitor the interface of your own computer, and capture 
+& analyze the traffic that passes through that interface.
+
+- Installed on many linux distros by default.
+- To be able to sniff traffic, start the program as root.
+  - It's advisable not to use root. To do that: [Wireshark Without Root](https://www.linuxbabe.com/wireshark/wireshark)
+
+### Capturing Packets
+
+#### Method 1:
+
+Double click any interface
+
+#### Mehod 2:
+
+1. Click __Capture__
+2. Click __Options__
+3. Select an interface and click __start__.
+
+__Method 2__ allows you to enable __Promiscuous mode__.
+
+- When a wired or wireless network card is in __promiscuous mode_, it can read
+  all the received traffic, rather than just traffics addressed to it.
+
+### Wireshark Colors
+
+- __Purple__ is TCP traffic
+- __Light Blue__ is UDP traffic
+- __Black__ identifies packets with errors
+
+To view what all the colors mean:
+
+1. Click __View__
+2. Click __Coloring Rules__
+
+### Wireshark Layout
+
+It consists of 3 main parts:
+
+1. The packet list pane
+   - Displays a summary of each packet captured.
+   - By clicking a packet, it changes what's displayed in the other two panes.
+   - Each line in the packet list corresponds to a single captured packet.
+2. The packet details pane
+   - Displays the packet selected in more detail
+3. The packet byte pan
+   - Displays the data from the selected packet, highlighting the field selected
+     in the packet details pane.
+
+If you double-click a line, you'll see more information about the packet.
+
+![](assets/wireshark01.png)
+
+- Includes info about:
+  - The ethernet headers
+    - Source and destination MAC addresses
+  - The IP header
+    - The source and destination IP addresses
+  - TCP header info 
+  - Application data
+- You can save the capture for later inspection with `CTRL + S`
+  - It can be saved in multiple formats. 
+    - The most important ones are:
+      - `pcapng`
+        - Native file format for the latest version of wireshark
+      - `pcap`
+        - File format for older versions of wireshark, but also by well-known
+          tools and widely used tools like __TCP Dump__.
+    - Not all info is saved in a capture file. For example, not all file formats
+      record the number of dropped packets.
+
+```shell
+tcpdump -vv -r /root/<capture_file>
+```
+
+## Capture Traffic Using `tcdump`
+
+`tcpdump` Is the most popular tool.
+
+```shell
+tcpdump -i <interface>
+
+# Examples
+tcpdump -i eth0
+tcpdump -i wlan0 dst medium.com
+
+tcpdump -i wlan0 dst medium.com -n
+tcpdump -i wlan0 dst 192.168.0.0/24 -n
+
+tcpdump -i wlan0 port 443 --vv -n
+
+tcpdump -i eth0 port 80 -A -n
+```
+
+- To see what traffic is hitting your interface
+- `host <ip_address>` If you want to see only the packets to or from an IP 
+  address
+- To specify the direction of packets to receive, use either:
+  - `src <domain-name>`
+  - `dst <domain-name>`
+- `n` Don't convert addresses to names
+- `port <num>` See packets of a specific application.
+- `vv` Increase verbosity
+- `src|dst port <num>` Check packets coming or going to a specific port
+- `A` The output includes ASCII strings from the capture string, allowing the 
+  parsing of the output.
+- `X` Capture both ASCII and hexadecimal.
+- `w <filename>` Write data a file `filename`
+- `r <filename>` Read data from a file `filename`.
+  - All options are still available.
+
+### Logical Operators
+
+```shell
+# Only capture icmp packets from a specific ip address
+tcdump -i eth0 icmp and host 8.8.8.8
+
+# Capture
+tcpdump -i eth0 port 80 or port 443
+```
+
 # Section 23: IPFS - The Interplanetary File System
 
 ## General Notes
