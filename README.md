@@ -7763,6 +7763,450 @@ sudo ipfs repo gc
 
 ## General Notes
 
+ - [Netfilter](https://netfilter.org/)
+   - Enables packet filtering
+   - Network and port address translation
+   - Port forwarding
+   - Packet alteration
+     - Altering data and IP packet headers before/after the routing process.
+ - __Netfilter__ is a __software firewall__, a __packet filtering framework
+  inside the Linux Kernel.__
+ - It enables __packet filtering, NAT, PAT, Port Forwarding__ and __packet
+  mangling.__
+ - Netfilter framework is controlled by the `iptables` command.
+ - Iptables is a tool that belong to the __user-space__ used to configure
+  netfilter.
+ - Netfilter and Iptables are often combined into a single expression
+  netfilter/iptables.
+ - Every Linux distribution uses netfilter/iptables, there is nothing extra that 
+   should be installed.
+ - __Only root__ user can use or configure the netfilter framework.
+- Iptables is a tool that belongs to the __user-space__, while netfilter
+  belongs to __kernel space__.
+- Iptables rules are not saved between system restarts. To save them, create a 
+  script and have it run at boot.
+
+## Chain Traversal
+
+- __Incoming traffic__ is filtered on the __INPUT CHAIN__ of the __filter 
+  table.__
+- __Outgoing traffic__ is filtered on the __OUTPUT CHAIN__ of the __filter 
+  table.__
+- __Routed traffic__ is filtered on the __FORWARD CHAIN__ of the __filter 
+  table.__
+  - _In both directions_
+- __SNAT/MASQUERADE__ is performed on the __POSTROUTING CHAIN__ of the __nat 
+  table.__
+  - __SNAT:__ Source Network Address Translation
+- __DNAT/Port Forwarding__ is performed on the __PREROUTING CHAIN__ of the __nat
+  table.__
+  - __DNAT:__ Destination Network Address Translation
+- To modify values from the packet's headers add rules to the __mangle table._
+- To skip the connection tracking add rules with __NOTRACK target__ to the
+  __raw table.__
+
+## Iptables Basic Usage
+
+```shell
+iptales [-t table_name] -COMMAND CHAIN_NAME matches -j TARGET
+```
+
+| Table            | Command        | CHAIN        | Matches          | Target/Jump |
+|:-----------------|:---------------|:-------------|:-----------------|:------------|
+| filter (default) | -A _(append)_  | INPUT        | -s source_ip     | ACCEPT      |
+| nat              | -I _(insert)   | OUTPUT       | -d dest_ip       | DROP        |
+| mangle           | -D _(delete)_  | FORWARD      | -p protocol      | REJECT      |
+| raw              | -R _(replace)_ | PREROUTING   | --sport source_p | LOG         |
+|                  | -F (flush)     | POSTROUTING  | --dport dest_p   | SNAT        |
+|                  | -Z _(zero)_    | USER_DEFINED | -i incoming_int  | DNAT        |  
+|                  | -L _(list)     |              | -o outgoing_int  | MASQUERADE  |
+|                  | -S _(show)_    |              | -m mac           | LIMIT       |
+|                  | -N             |              | -m time          | RETURN      |
+|                  | -X             |              | -m quota         | TEE         |
+|                  |                |              | -m limit         | TOS         |
+|                  |                |              | -m recent        | TTL         |
+
+## Examples
+
+```shell
+# Block pings
+iptables -t filter -A INPUT -p icmp --icmp-type echo-request -j drop
+
+# List information more verbose
+iptables -vnL
+
+# Filtering Ubuntu.com
+iptables -t filter -A OUTPUT -p tcp --dport 80 -d www.ubuntu.com -j DROP
+iptables -t filter -A OUTPUT -p tcp --dport 443 -d www.ubuntu.com -j DROP
+```
+
+- If it uses __https__, it's probably using __port 443__.
+
+## Iptables Options (Flags)
+
+__These options specify the desired action to perform:__
+
+- `A`: Append the rule to the end of the selected chain.
+- `I`: Insert one or more rules in the selected chain on a specific position, 
+  by default on top (position 1).
+- `L`: List all rules in teh selected hain. If no chain is selected, all chains 
+  are listed.
+- `F`: Flush the selected chain (all the chains in the table if none is given)
+  - Deletes all rules
+- `Z`: Zero the packet and byte counters in all chains, or only the given cha
+- `N`: Create a new user-defined chain by the given name.
+- `X`: Delete the user-defined chain specified.
+- `P`: Set the policy for the built-in chain (`INPUT`, `OUTPUT`, or `FORWARD`)
+  - Defines what happens to packets that are not matched by any rule.
+  - The default policy i set to `ACCEPT`.
+
+### Examples
+
+```shell
+# Blocking smtp traffic
+iptables -t filter -A INPUT -p tcp --dport 25 -j DROP
+
+# Blocking ftp traffic
+iptables -t filter -I INPUT -p udp --dport 69 -j DROP
+
+# Allow traffic on the output chain that accepts ssh traffic
+iptables -A OUTPUT -p tcp --dport 22 -j ACCEPT
+
+# Create custom chain
+iptables -N <chain_name>
+
+# Delete custom chain
+iptablex -X <chain_name>                                                                         
+
+# Set default policy
+iptables -P <chain_name> [ACCEPT|DROP]
+```
+
+- __Rules are done in the order specified__.
+- `ACCEPT` is a terminating target, so the packet will be accepted and no other
+  rules will check the pacet.
+
+## Creating a Script
+
+Save this into a shell script file.
+```shell
+#!/usr/bin/bash
+
+# Flush all the chains of the firewall
+iptables -F
+
+# Drop all traffic to port 22
+iptables -t filter -A INPUT -p tcp --dport 22 -j DROP
+
+# Drop all outgoing traffic to HTTP and HTTPS
+iptables -t filter -A OUTPUT -p tcp --dport 80 -j DROP  # HTTP
+iptables -t filter -A OUTPUT -p tcp --dport 443 -j DROP  # HTTPS
+```
+
+### Creating a Router
+
+```shell
+iptables -t nat -A POSTROUTING -s 10.0.0.0/8 -o enp0s3 -j SNAT --to-source 80.0.0.1
+```
+
+- This rule performs `SNAT`, translating the private IP addresses to network
+  10.0.0.0/8 to the public IP of the Linux machine.
+
+## Setting The Default Policy
+
+- __Policy__ specifies what happens to packets that are not matched against any 
+  rule.
+- __By default, Policy is set to accept all traffic.__
+- Policy can be changed only for INPUT, OUTPUT, and FORWARD chains.
+  - The policy is usually set for the INPUT chain at least, to be more secure.
+- Policy can be changed using `-P` option.
+
+## Deleting The Firewall
+
+```shell
+#!/bin/bash
+
+# 1. Set the ACCEPT policy
+iptables -P INPUT ACCEPT
+iptables -P OUTPUT ACCEPT
+iptables -P FORWARD ACCEPT
+
+# 2. Flush all tables that have rules
+iptables -t filter -F
+iptables -t nat -F
+iptables -t mangle -F
+iptables -t raw -F
+
+# 3. Delete user-defined chains
+iptables -X
+```
+
+## Filter By IP or Network Address
+
+1. __Match by Source IP or Network Address__
+   - Match: `-s IP`, `--source IP`
+   - __Example:__ 
+     ```shell
+     iptables -A INPUT -s 100.0.0.0/16 -j DROP
+     ```
+2. __Match by Destination IP or Network Address__
+   - Match: `-d IP`, `--destination IP`
+   - __Example:__ 
+     ```shell
+     iptables -A FORWARD -d 80.0.0.1 -j DROP
+     iptables -A OUTPUT -d www.ubuntu.com -j DROP
+     ```
+     - Specifying a domain name will be resolved with a DNS query, and that is
+       not always a good ideas.
+
+### Find And Drop Packets Of a Website
+
+```shell
+# Method 1: Domain
+iptables -A OUTPUT -d www.ubuntu.com -j DROP
+
+# Method 2: IP Addresses
+# 1. Find the IP addresses of the website with either dig or nslookup
+nslookup www.ubuntu.com
+dig www.ubuntu.com
+
+#2. Block all found IP addresses, one at a time
+```
+
+- `dig` is Linux only and has more commands available.
+- When you use a domain instead of an IP address, it finds and blocks all the 
+  associated IP addresses.
+  - Do not do this wth large websites as they have a very large amount of IP
+    addresses, and the DNS response will contain only a few of them.
+- `0/0` Means any IP address with any mask.
+
+## Filter By Port
+
+1. __Match by a single port__
+   - Match option:
+     ```shell
+     -p tcp|udp --dport|--sport <port> 
+     ```
+   - Example:
+   ```shell
+   iptables -A INPUT -p tcp --dport 22 -j DROP
+   ```
+2. __Match by multiple ports__
+   - Match option: 
+     ```shell
+     -m multiport --sports|--dports port1,port2,...,port_n
+     ```
+   - Example:
+   ```shell
+   iptables -A OUTPUT -p tcp -m multiport --dports 80 80,443 -j ACCEPT
+   ```
+   
+### Filtered vs Closed Ports
+
+__Filtered Port:__ An open port where there is a firewall dropping traffic to
+that open port. We are receiving no traffic back when sending traffic to that 
+port.
+
+__Closed Port:__ A port in which no application is listening. If you send a 
+packet to a closed port, you receive a packet back indicating that the port
+is closed.
+
+- A tcp packet with the __reset__ flag set.
+
+### Example Script
+
+```shell
+#!/bin/bash
+
+# Remove all rules from the chain
+iptables -F
+
+iptables -A INPUT -p tcp --dport 22 -s 192.168.0.112 -j ACCEPT
+iptables -A INPUT -p tcp --dport 22 -s 0/0 -j DROP
+
+# Multi-port drop
+iptables -A INPUT -p tcp -m multiport --dports 80,443 -j DROP
+```
+
+## Intro To Stateful Firewalls (Connection Tracking)
+
+___Connection Tracking = Stateful Firewall___
+
+- __Connection tracking__ = ability to maintain __state information__ about 
+connections in a memory table.
+- Firewalls that do this are known as __stateful__ and are much more secure than
+  their stateless or packet-based counterparts.
+- The decision to accept or drop packets is not taken anymore from the values 
+  in the packet headers (like source or destination IP header), but __on the
+  relationship it has with other packets.__
+- Netfilter is a stateful firewall.
+
+### Packet States
+
+1. __NEW:__ The first packet from a connection
+2. __ESTABLISHED:__ Packets that are part of an existing connection.
+3. __RELATED:__ Packets that are requesting a new connection and are already 
+  part of an existing connection (Ex:FTP)
+4. __INVALID:__ Packets that are not part of any existing connection.
+5. __UNTRACKED:__ Packets marked within the raw table with the __NOTRACK__ target.
+
+Connection tracking can be used even if the protocol itself is stateless (Ex: 
+UDP, ICMP)
+
+`-m state --state <state>`, where state is a comma separated values of packet
+states written in UPPERCASE letters.
+
+- Example:
+  ```shell
+  iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+   ```
+  
+## Implementing a Stateful Firewall
+
+This is the kind of firewall you want on a system like a personal desktop.
+
+```shell
+#!/bin/bash
+
+iptables -F
+
+# Allow loopback traffic
+iptables -A INPUT -i lo -j ACCEPT
+iptables -A OUTPUT -o lo -j ACCEPT
+
+# Allow a custom IP address for SSH
+iptables -A INPUT -p tcp --dport 22 -m state --state NEW -s 192.168.0.20 -j ACCEPT
+
+# Stateful part of the firewall
+iptables -A INPUT -m state --state INVALID -j DROP
+iptables -A OUTPUT -m state --state INVALID -j DROP
+
+iptables -A INPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -A OUTPUT -m state --state ESTABLISHED,RELATED -j ACCEPT
+
+iptables -P INPUT DROP
+iptables -P OUTPUT DROP
+```
+
+## Filter By MAC Address
+
+It is possible to filter traffic only by source mac address.
+
+- Match: `-m mac --mc-source <source_mac_address>`
+- Example:
+  ```shell
+  iptables -A INPUT -i wlan0 -m mac --mac-source 08:00:27:55:6f:20 -j DROP
+  ```
+  
+- MAC addresses are only valid inside the local area network.
+- The first router towards destination will change the source MAC address of the
+  packet with its own MAC address.
+  - The MAC address of its outgoing interface.
+- You cannot enforce a strong security policy with MAC addresses, because they 
+  can be spoofed easily.
+
+### Example Script
+
+```shell
+#!/bin/bash
+
+iptables -F FORWARD
+
+PERMITTED_MACS="08:00:27:04:61:21 08:00:27:04:61:21 08:00:27:04:61:21"
+
+for MAC in $PERMITTED_MAC
+do
+  iptabes -A FORWARD -m mac --mac-source $MAC -j ACCEPT
+  echo "$MAC permitted"
+done
+
+iptables -P FORWARD DROP
+```
+
+- This also works for a server, just replace the `FORWARD` chain with the 
+  `INPUT` chain.
+
+## Filter By Date and Time
+
+`-m time <option>`
+
+### Time Match Opions
+
+- `--datestart <time>` Start and stop time, to be given in __ISO 8601__
+- `--datestop <time>` (`YYYY[-MM[-DD[Thh[:mm[:ss]]]]]`)
+- `--timestart <time>` Start and stop daytime (`hh:mm[:ss]`)
+- `--timestop <time>` (between `00:00:00` and `23:59:59`)
+- `--monthdays <value>` List of days on which to match, separated by comma
+- `[!] --weekdays <value>` List of weekdays on which to match, separated by 
+  comma.
+- `--kerneltz` Work with the kernel timezone instead of UTC
+
+__Note:__ By default it usesUTC and not system time.
+
+- `--kerneltz` makes netfilter use system time instead of UTC time
+  - Some distros only use UTC even when this is given
+
+#### Example:
+
+1. Permit incoming ssh traffic only between  AM and 4 PM on weekdays.
+   ```shell
+   #!/bin/bash
+   
+   iptables -F
+   
+   iptables -A INPUT -p tcp --dport 22 -m time --timestart 10:00 --timestop 16:00 -j ACCEPT
+   iptables -A INPUT -p tcp --dport 22 -j DROP
+   
+   iptables -A FORWARD -p tcp --dport 443 -d www.ubuntu.com -m time --timestart 18:00 --timestop 8:00 -j ACCEPT
+   iptables -A FORWARD -p tcp --dport 443 -d www.ubuntu.com -j DOP
+   ```
+2. Allow access to a specific wb site only after working hours (> 6PM). Suppose 
+   this machine is the router.)
+   ```shell
+
+   ```
+   
+## The `ACCEPT` and `DROP` Targets
+
+
+### ACCEPT
+
+`ACCEPT` i a terminating target.
+
+```shell
+iptables -A INPUT -p tcp --dport 25 -j ACCEPT
+```
+
+### DROP
+
+`DROP` i a terminating target.
+
+- `DROP` denies the packet and doesn't send any packet back to the source.
+
+```shell
+iptables -I OUTPUT -p udp --dport 53 ! -d 8.8.8.8 -j DROP
+```
+
+## The LOG Target
+
+- __LOG__ is a non-terminating target.
+- It logs detailed information about packet headers.
+- Logs can be read with `dmesg` or from `syslogd` daemon.
+- LOG is used instead of DROP in the debugging phase.
+- ULOG has MySQL support (extensive logging)
+
+__Options:__
+
+- `--log-prefix`
+- `--log-level`
+
+__Example:__
+  ```shell
+  iptables -A INPUT -p tcp --dport 22 --syn -j LOG --log-prefix="incoming ssh:" --log-level info
+  ```
+
+- Logs are saved in `/var/log/kern.log`
+   
 # Section 25: Challenges - Netfilter and Iptables
 
 ## General Notes
