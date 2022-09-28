@@ -4365,7 +4365,7 @@ ssh -p
 
 An SSH and Telnet client for Windows users.
 
-[Download](https://www.chiark.greenend.org.uk/~sgtatham/putty/)
+[Download](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html)
 
 ## Troubleshooting SSH Connections
 
@@ -8207,13 +8207,84 @@ __Example:__
 
 - Logs are saved in `/var/log/kern.log`
    
-# Section 25: Challenges - Netfilter and Iptables
-
-## General Notes
-
 # Section 26: Security: SSH Public Key Authentication
 
 ## General Notes
+
+__PKA (Public Key Authentication)__ is an euthentication method that uses a key 
+pair for authentication instead of a password which is the default method.
+
+__Advantages:__
+
+- Increased security
+- Authentication from within scripts or automation tools (automated backups, 
+  updates, network automation, etc.)
+
+In PKA there are two types of keys generated:
+
+- Private Key (It says on the SSH Client)
+  - It's common to hae an unencrypted private key (especially in cases where ssh
+    is used to automate things).
+- Public Key (It says on the SSH Server)
+
+## Generating SSH Key Pair On Windows
+
+__Requirements:__
+
+- __ssh__ client that supports RSA authentication
+- A private and a public key
+- ssh server that supports SSH PKA
+
+[PuTTY](https://www.chiark.greenend.org.uk/~sgtatham/putty/latest.html) and
+__PuTTY Gen__ are used.
+
+- Use `CTRL + F` on the above page and search for _puttygen.exe_
+
+### Settings
+
+- __2048 bytes__ is the default. If you need strong,er use __4096 bytes__.
+- Choose __RSA__.
+- Add a comment to the keys
+- Add `.pub` as the extension for the public key, and `.ppk` for the private.
+
+## Generating SSH Key Pair On Linux
+
+```shell
+ssh-keygen -b 2048 -t rsa -C "<comment_string>"
+```
+
+- `b` Number of bits in key to create
+- `t` Type of key to create
+  - __RSA__ is the most common
+- `C` Comment for the keys
+  - Anything that uniquely identifies this key
+
+## Configuring SSH Public Key Authentication On Linux
+
+#### Copy the public key to the server
+
+- __On Windows:__ 
+  1. Open the public key file, and copy the public key.
+  2. Paste the public key in `~/.ssh/authorized_keys` on the Linux server
+  3. Open __PuTTY_
+  4. Go to `Connection > SSH > Authentication`
+  5. Click __Browse__ and choose the private key
+  6. On the main screen, enter the IP address of the Linux server.
+  7. Give the session a name and save it.
+- __On Linux:__
+  1. You can copy the public key from terminal using either: 
+     - `cat ~/.ssh/id_rsa.pub` 
+     - `scp ~/.ssh/id_rsa.pub <user>@<port>:~/.ssh/authorized_keys`
+     - `ssh-copy-id -i [~/.ssh/id_rsa.pub] <user>@<port>`
+       - Will copy the public key on the server and append it to 
+         `~/.ssh/athoried_keys`
+- Also make sure that the private key only has the read permission for the owner.
+
+__Disable Password Authentication__
+
+1. `sudo vim /etc/ssh/sshd_config`
+2. Set `PasswordAuthentication no`
+3. Restart the server using `systemctl restart ssh`
 
 # Section 27: Where To Go From Here?
 
